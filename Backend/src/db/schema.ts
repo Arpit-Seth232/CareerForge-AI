@@ -1,27 +1,12 @@
-import { users } from "./users";
-import { roadmaps } from "./roadmaps";
-import {
-  recommendationHistory,
-  recommendationTypeEnum,
-} from "./recommendationHistory";
-import { aiChatHistory, senderTypeEnum } from "./aiChatHistory";
-import { analytics } from "./analytics";
-import { mentorMatches } from "./mentorMatches";
+import { jobSeeker } from "./jobSeeker";
 import { mentors } from "./mentors";
-import { resumes, resumeSourceEnum } from "./resumes";
-import { jobMatches } from "./jobMatches";
+import { recruiter } from "./recruiter";
+import { users, userRoleEnum } from "./user";
 
 export const schema = {
-  aiChatHistory,
-  users,
-  roadmaps,
-  recommendationHistory,
-  recommendationTypeEnum,
-  senderTypeEnum,
-  analytics,
-  mentorMatches,
+  jobSeeker,
   mentors,
-  resumeSourceEnum,
-  resumes,
-  jobMatches,
+  recruiter,
+  users,
+  userRoleEnum,
 };
