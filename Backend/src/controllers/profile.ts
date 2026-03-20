@@ -1,218 +1,215 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { db } from "../db";
-import { schema } from "../db/schema";
+import * as schema from "../db/schema";
 import { eq } from "drizzle-orm";
 import { IRequest } from "../middleware/authMiddleware";
+import { catchAsync } from "../utils/catchAsync";
+import { AuthenticationError, ValidationError } from "../errors/AppError";
 
-const jobSeekerProfileDetails = async (req: IRequest, res: Response) => {
-  const { fullName, bio, preferredRoles, yearOfExperience } =
-    req.body;
+const jobSeekerProfileDetails = catchAsync(async (req: IRequest, res: Response) => {
+  if (!req.userId) throw new AuthenticationError();
 
-  try {
-    // Update user profile completion status
-    if (!fullName || !preferredRoles || !yearOfExperience) {
-      return res.status(400).json({
-        isSuccess: false,
-        message: "Please Enter all details",
-      });
-    }
+  const {
+    fullName,
+    bio,
+    yearOfExp,
+    currentTitle,
+    experienceLevel,
+    rolePreference,
+    linkedinUrl,
+    githubUrl,
+    phone,
+    claimedLocation,
+    workTypePref,
+    salaryExpMin,
+    salaryExpMax,
+    willingToRelocate,
+  } = req.body;
 
-    if (!req.userId) {
-      return res.status(400).json({
-        isSuccess: false,
-        message: "User ID not found",
-      });
-    }
-
-    // Ensure preferredRoles is an array
-    const preferredRolesArray = Array.isArray(preferredRoles) ? preferredRoles : [preferredRoles];
-
-    // Check if job seeker profile exists
-    const existingProfile = await db
-      .select()
-      .from(schema.jobSeeker)
-      .where(eq(schema.jobSeeker.id, req?.userId));
-
-    let userData;
-    if (existingProfile.length > 0) {
-      // Update existing profile
-      userData = await db
-        .update(schema.jobSeeker)
-        .set({
-          fullName,
-          bio,
-          preferredRoles: preferredRolesArray,
-          yearOfExperience,
-        })
-        .where(eq(schema.jobSeeker.id, req?.userId));
-    } else {
-      // Insert new profile
-      userData = await db
-        .insert(schema.jobSeeker)
-        .values({
-          id: req?.userId,
-          fullName,
-          bio,
-          preferredRoles: preferredRolesArray,
-          yearOfExperience,
-        });
-        // Update user profile completion status
-        await db
-          .update(schema.users)
-          .set({ isProfileCompleted: true })
-          .where(eq(schema.users.id, req?.userId));
-    }
-
-
-    return res.status(200).json({
-      isSuccess: true,
-      message: "Profile completion status updated successfully",
-      data: userData,
-    });
-  } catch (error) {
-    console.error("Error updating profile completion:", error);
-    return res.status(500).json({ error: "Internal server error" });
+  if (!fullName) {
+    throw new ValidationError("fullName is required");
   }
-};
 
-const recruiterProfileDetails = async (req: IRequest, res: Response) => {
-  const { fullName, companyName, jobTitle, companySize, industry } = req.body;
+  const profileData = {
+    fullName,
+    bio: bio || null,
+    yearOfExp: yearOfExp != null ? Number(yearOfExp) : 0,
+    currentTitle: currentTitle || null,
+    experienceLevel: experienceLevel || null,
+    rolePreference: rolePreference || null,
+    linkedinUrl: linkedinUrl || null,
+    githubUrl: githubUrl || null,
+    phone: phone || null,
+    claimedLocation: claimedLocation || null,
+    workTypePref: workTypePref || null,
+    salaryExpMin: salaryExpMin || null,
+    salaryExpMax: salaryExpMax || null,
+    willingToRelocate: willingToRelocate ?? false,
+  };
 
-  try {
-    // Update recruiter profile completion status
-    if (!fullName || !companyName || !jobTitle || !companySize || !industry) {
-      return res.status(400).json({
-        isSuccess: false,
-        message: "Please Enter all details",
-      });
-    }
+  const [existing] = await db
+    .select({ id: schema.jobSeekerProfiles.id })
+    .from(schema.jobSeekerProfiles)
+    .where(eq(schema.jobSeekerProfiles.userId, req.userId));
 
-    if (!req.userId) {
-      return res.status(400).json({
-        isSuccess: false,
-        message: "User ID not found",
-      });
-    }
-
-    // Check if recruiter profile exists
-    const existingProfile = await db
-      .select()
-      .from(schema.recruiter)
-      .where(eq(schema.recruiter.id, req?.userId));
-
-    let userData;
-    if (existingProfile.length > 0) {
-      // Update existing profile
-      userData = await db
-        .update(schema.recruiter)
-        .set({
-          companyName,
-          fullName,
-          jobTitle,
-          companySize,
-          industry,
-        })
-        .where(eq(schema.recruiter.id, req?.userId));
-    } else {
-      // Insert new profile
-      userData = await db
-        .insert(schema.recruiter)
-        .values({
-          id: req?.userId,
-          companyName,
-          fullName,
-          jobTitle,
-          companySize,
-          industry,
-        });
-        // Update user profile completion status
-        await db
-          .update(schema.users)
-          .set({ isProfileCompleted: true })
-          .where(eq(schema.users.id, req?.userId));
-    }
-
-
-    return res.status(200).json({
-      isSuccess: true,
-      message: "Profile completion status updated successfully",
-      data: userData,
-    });
-  } catch (error) {
-    console.error("Error updating profile completion:", error);
-    return res.status(500).json({ error: "Internal server error" });
+  if (existing) {
+    await db
+      .update(schema.jobSeekerProfiles)
+      .set(profileData)
+      .where(eq(schema.jobSeekerProfiles.userId, req.userId));
+  } else {
+    await db
+      .insert(schema.jobSeekerProfiles)
+      .values({ userId: req.userId, ...profileData });
   }
-};
 
-const mentorProfileDetails = async (req: IRequest, res: Response) => {
-  const { fullName, expertise, yearOfMentoring, bio } = req.body;
+  res.status(200).json({
+    isSuccess: true,
+    message: "Profile updated successfully",
+  });
+});
 
-  try {
-    // Update mentor profile completion status
-    if (!fullName || !expertise || !yearOfMentoring || !bio) {
-      return res.status(400).json({
-        isSuccess: false,
-        message: "Please Enter all details",
-      });
-    }
+const recruiterProfileDetails = catchAsync(async (req: IRequest, res: Response) => {
+  if (!req.userId) throw new AuthenticationError();
 
-    if (!req.userId) {
-      return res.status(400).json({
-        isSuccess: false,
-        message: "User ID not found",
-      });
-    }
+  const {
+    fullName,
+    position,
+    jobLocation,
+    phone,
+    companyName,
+    companyWebsite,
+    companyIndustry,
+    companySize,
+    companyHqLocation,
+    companyDescription,
+    companyLinkedinUrl,
+  } = req.body;
 
-    // Ensure expertise is an array
-    const expertiseArray = Array.isArray(expertise) ? expertise : [expertise];
-
-    // Check if mentor profile exists
-    const existingProfile = await db
-      .select()
-      .from(schema.mentors)
-      .where(eq(schema.mentors.id, req?.userId));
-
-    let userData;
-    if (existingProfile.length > 0) {
-      // Update existing profile
-      userData = await db
-        .update(schema.mentors)
-        .set({
-          fullName,
-          expertise: expertiseArray,
-          yearOfMentoring,
-          bio,
-        })
-        .where(eq(schema.mentors.id, req?.userId));
-    } else {
-      // Insert new profile
-      userData = await db
-        .insert(schema.mentors)
-        .values({
-          id: req?.userId,
-          fullName,
-          expertise: expertiseArray,
-          yearOfMentoring,
-          bio,
-        });
-        // Update user profile completion status
-        await db
-          .update(schema.users)
-          .set({ isProfileCompleted: true })
-          .where(eq(schema.users.id, req?.userId));
-    }
-
-
-    return res.status(200).json({
-      isSuccess: true,
-      message: "Profile completion status updated successfully",
-      data: userData,
-    });
-  } catch (error) {
-    console.error("Error updating profile completion:", error);
-    return res.status(500).json({ error: "Internal server error" });
+  if (!fullName || !position) {
+    throw new ValidationError("fullName and position are required");
   }
-};
+
+  let companyId: string | null = null;
+
+  if (companyName) {
+    const [existingCompany] = await db
+      .select({ id: schema.companies.id })
+      .from(schema.companies)
+      .where(eq(schema.companies.name, companyName));
+
+    if (existingCompany) {
+      companyId = existingCompany.id;
+      await db
+        .update(schema.companies)
+        .set({
+          website: companyWebsite || null,
+          industry: companyIndustry || null,
+          companySize: companySize || null,
+          hqLocation: companyHqLocation || null,
+          description: companyDescription || null,
+          linkedinUrl: companyLinkedinUrl || null,
+        })
+        .where(eq(schema.companies.id, companyId));
+    } else {
+      const [newCompany] = await db
+        .insert(schema.companies)
+        .values({
+          name: companyName,
+          website: companyWebsite || null,
+          industry: companyIndustry || null,
+          companySize: companySize || null,
+          hqLocation: companyHqLocation || null,
+          description: companyDescription || null,
+          linkedinUrl: companyLinkedinUrl || null,
+        })
+        .returning({ id: schema.companies.id });
+      companyId = newCompany.id;
+    }
+  }
+
+  const profileData = {
+    fullName,
+    position,
+    jobLocation: jobLocation || null,
+    phone: phone || null,
+    companyId,
+  };
+
+  const [existing] = await db
+    .select({ id: schema.recruiterProfiles.id })
+    .from(schema.recruiterProfiles)
+    .where(eq(schema.recruiterProfiles.userId, req.userId));
+
+  if (existing) {
+    await db
+      .update(schema.recruiterProfiles)
+      .set(profileData)
+      .where(eq(schema.recruiterProfiles.userId, req.userId));
+  } else {
+    await db
+      .insert(schema.recruiterProfiles)
+      .values({ userId: req.userId, ...profileData });
+  }
+
+  res.status(200).json({
+    isSuccess: true,
+    message: "Profile updated successfully",
+  });
+});
+
+const mentorProfileDetails = catchAsync(async (req: IRequest, res: Response) => {
+  if (!req.userId) throw new AuthenticationError();
+
+  const {
+    fullName,
+    title,
+    company,
+    yearsOfExp,
+    expertiseAreas,
+    phone,
+    linkedinUrl,
+    pricePerSession,
+  } = req.body;
+
+  if (!fullName || !expertiseAreas || yearsOfExp === undefined) {
+    throw new ValidationError("fullName, expertiseAreas, and yearsOfExp are required");
+  }
+
+  const expertiseArray = Array.isArray(expertiseAreas) ? expertiseAreas : [expertiseAreas];
+
+  const profileData = {
+    fullName,
+    title: title || null,
+    company: company || null,
+    yearsOfExp: Number(yearsOfExp),
+    expertiseAreas: expertiseArray,
+    phone: phone || null,
+    linkedinUrl: linkedinUrl || null,
+    pricePerSession: pricePerSession || null,
+  };
+
+  const [existing] = await db
+    .select({ id: schema.mentorProfiles.id })
+    .from(schema.mentorProfiles)
+    .where(eq(schema.mentorProfiles.userId, req.userId));
+
+  if (existing) {
+    await db
+      .update(schema.mentorProfiles)
+      .set(profileData)
+      .where(eq(schema.mentorProfiles.userId, req.userId));
+  } else {
+    await db
+      .insert(schema.mentorProfiles)
+      .values({ userId: req.userId, ...profileData });
+  }
+
+  res.status(200).json({
+    isSuccess: true,
+    message: "Profile updated successfully",
+  });
+});
 
 export {
   jobSeekerProfileDetails,
