@@ -11,7 +11,6 @@ import { ML_API_URL } from "../config";
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || "";
 const JSEARCH_HOST = "jsearch.p.rapidapi.com";
-const SYSTEM_RECRUITER_ID = process.env.SYSTEM_RECRUITER_ID || "";
 
 // ── Type maps ──────────────────────────────────────────────────────
 
@@ -280,7 +279,8 @@ async function storeJob(jobData: JSearchJob): Promise<string | null> {
   const [job] = await db
     .insert(schema.jobs)
     .values({
-      recruiterId: SYSTEM_RECRUITER_ID,
+      recruiterId: null,
+      source: "scraped",
       companyId,
       jobTitle: title,
       jobDescription: description,
@@ -313,10 +313,6 @@ export async function scrapeAndStoreJobs(
   location: string = "India",
   numPages: number = 1,
 ): Promise<{ fetched: number; stored: number; skipped: number; errors: number }> {
-  if (!SYSTEM_RECRUITER_ID) {
-    throw new Error("SYSTEM_RECRUITER_ID not set. Create a system user first.");
-  }
-
   const jobs = await fetchFromJSearch(query, location, 1, numPages);
 
   let stored = 0;

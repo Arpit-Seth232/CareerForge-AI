@@ -6,6 +6,7 @@ import config
 from routes.resume import router as resume_router
 from routes.roadmap import router as roadmap_router
 from routes.ml import router as ml_router
+from routes.jobs import router as jobs_router
 
 app = FastAPI(
     title="CareerForge ML Service",
@@ -24,6 +25,7 @@ app.add_middleware(
 app.include_router(resume_router)
 app.include_router(roadmap_router)
 app.include_router(ml_router)
+app.include_router(jobs_router)
 
 
 @app.get("/health")

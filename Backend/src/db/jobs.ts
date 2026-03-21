@@ -9,7 +9,7 @@ import {
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
-import { jobTypeEnum, workTypeEnum } from "./enums";
+import { jobTypeEnum, workTypeEnum, jobSourceEnum } from "./enums";
 import { users } from "./users";
 import { companies } from "./companies";
 import { skillsMaster } from "./skillsMaster";
@@ -18,10 +18,9 @@ import { vector } from "./customTypes";
 // Job postings by recruiters
 export const jobs = pgTable("jobs", {
   id: uuid("id").primaryKey().defaultRandom(),
-  recruiterId: uuid("recruiter_id")
-    .references(() => users.id)
-    .notNull(),
+  recruiterId: uuid("recruiter_id").references(() => users.id),
   companyId: uuid("company_id").references(() => companies.id),
+  source: jobSourceEnum("source").default("posted").notNull(),
   jobTitle: varchar("job_title", { length: 200 }).notNull(),
   jobDescription: text("job_description").notNull(),
   jobRequirement: text("job_requirement"),

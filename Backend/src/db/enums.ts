@@ -26,6 +26,11 @@ export const jobTypeEnum = pgEnum("job_type", [
   "internship",
 ]);
 
+export const jobSourceEnum = pgEnum("job_source", [
+  "posted",
+  "scraped",
+]);
+
 export const applicationStatusEnum = pgEnum("application_status", [
   "applied",
   "shortlisted",
